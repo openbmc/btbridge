@@ -471,6 +471,7 @@ static int dispatch_bt(struct btbridged_context *context)
 	assert(context);
 
 	if (context->fds[BT_FD].revents & POLLIN) {
+		sd_bus_message *msg;
 		int data_len;
 		struct bt_queue *new;
 		uint8_t data[BT_MAX_MESSAGE] = { 0 };
@@ -506,17 +507,47 @@ static int dispatch_bt(struct btbridged_context *context)
 				MSG_ERR("Couldn't set timerfd\n");
 		}
 
-		MSG_OUT("Sending dbus signal with netfn 0x%02x, lun 0x%02x, seq 0x%02x, cmd 0x%02x\n",
-				new->req.netfn, new->req.lun, new->req.seq, new->req.cmd);
-		/* Note we only actually keep the request data in the queue when debugging */
-		r = sd_bus_emit_signal(context->bus, OBJ_NAME, DBUS_NAME, "ReceivedMessage", "yyyyay",
-				               new->req.seq, new->req.netfn, new->req.lun, new->req.cmd,
-				               new->req.data_len, data+4);
+		r = sd_bus_message_new_signal(context->bus, &msg, OBJ_NAME, DBUS_NAME, "ReceivedMessage");
 		if (r < 0) {
-			MSG_ERR("Couldn't emit dbus signal: %s\n", strerror(-r));
+			MSG_ERR("Failed to create signal: %s\n", strerror(-r));
 			goto out1;
 		}
+
+		r = sd_bus_message_append(msg, "yyyy", new->req.seq, new->req.netfn, new->req.lun, new->req.cmd);
+		if (r < 0) {
+			MSG_ERR("Couldn't append to signal: %s\n", strerror(-r));
+			goto out1_free;
+		}
+
+		r = sd_bus_message_append_array(msg, 'y', data + 4, new->req.data_len);
+		if (r < 0) {
+			MSG_ERR("Couldn't append array to signal\n", strerror(-r));
+			goto out1_free;
+		}
+
+		MSG_OUT("Sending dbus signal with seq 0x%02x, netfn 0x%02x, lun 0x%02x, cmd 0x%02x\n",
+				new->req.seq, new->req.netfn, new->req.lun, new->req.cmd);
+
+		if (context->debug) {
+			int i;
+
+			for (i = 0; i < new->req.data_len; i++) {
+				if (i && i % 8 == 0)
+					MSG_OUT("\n");
+				MSG_OUT("0x%02x ", data[i + 4]);
+			}
+			MSG_OUT("\n");
+		}
+
+		/* Note we only actually keep the request data in the queue when debugging */
+		r = sd_bus_send(context->bus, msg, NULL);
+		if (r < 0) {
+			MSG_ERR("Couldn't emit dbus signal: %s\n", strerror(-r));
+			goto out1_free;
+		}
 		r = 0;
+out1_free:
+		sd_bus_message_unref(msg);
 out1:
 		err = r;
 	}
