@@ -271,7 +271,7 @@ static int method_send_message(sd_bus_message *msg, void *userdata, sd_bus_error
 		r = 0;
 		goto out;
 	}
-	r = sd_bus_message_read(msg, "yyyyy", &netfn, &lun, &seq, &cmd, &cc);
+	r = sd_bus_message_read(msg, "yyyyy", &seq, &netfn, &lun, &cmd, &cc);
 	if (r < 0) {
 		MSG_ERR("Couldn't parse leading bytes of message: %s\n", strerror(-r));
 		sd_bus_error_set_const(ret_error, "org.openbmc.error", "Bad message");
@@ -510,7 +510,7 @@ static int dispatch_bt(struct btbridged_context *context)
 				new->req.netfn, new->req.lun, new->req.seq, new->req.cmd);
 		/* Note we only actually keep the request data in the queue when debugging */
 		r = sd_bus_emit_signal(context->bus, OBJ_NAME, DBUS_NAME, "ReceivedMessage", "yyyyay",
-				               new->req.netfn, new->req.lun, new->req.seq, new->req.cmd,
+				               new->req.seq, new->req.netfn, new->req.lun, new->req.cmd,
 				               new->req.data_len, data+4);
 		if (r < 0) {
 			MSG_ERR("Couldn't emit dbus signal: %s\n", strerror(-r));
@@ -532,12 +532,12 @@ out1:
 		}
 		r = bt_host_write(context, bt_msg);
 		if (r < 0)
-			MSG_ERR("Problem putting request with netfn 0x%02x, lun 0x%02x, seq 0x%02x, cmd 0x%02x, cc 0x%02x\n"
-					"out to %s", BT_HOST_PATH, bt_msg->rsp.netfn, bt_msg->rsp.lun, bt_msg->rsp.seq,
+			MSG_ERR("Problem putting request with seq 0x%02x, netfn 0x%02x, lun 0x%02x, cmd 0x%02x, cc 0x%02x\n"
+					"out to %s", BT_HOST_PATH, bt_msg->rsp.seq, bt_msg->rsp.netfn, bt_msg->rsp.lun,
 					bt_msg->rsp.cmd, bt_msg->rsp.cc);
 		else
-			MSG_OUT("Completed request with netfn 0x%02x, lun 0x%02x, seq 0x%02x, cmd 0x%02x, cc 0x%02x\n",
-					bt_msg->rsp.netfn, bt_msg->rsp.lun, bt_msg->rsp.seq, bt_msg->rsp.cmd, bt_msg->rsp.cc);
+			MSG_OUT("Completed request with seq 0x%02x, netfn 0x%02x, lun 0x%02x, cmd 0x%02x, cc 0x%02x\n",
+					bt_msg->rsp.seq, bt_msg->rsp.netfn, bt_msg->rsp.lun, bt_msg->rsp.cmd, bt_msg->rsp.cc);
 	}
 out:
 	return err ? err : r;
