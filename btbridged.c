@@ -482,8 +482,8 @@ static int dispatch_bt(struct btbridged_context *context)
 			goto out1;
 		}
 		if (r < data[0] + 1) {
-			MSG_ERR("Short read from bt (%d)\n", r);
-			r = -EINVAL;
+			MSG_ERR("Short read from bt (%d vs %d)\n", r, data[0] + 1);
+			r = 0;
 			goto out1;
 		}
 
