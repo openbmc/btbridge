@@ -77,8 +77,6 @@ struct bt_queue {
 
 struct btbridged_context{
 	int debug;
-	uint8_t last_seq;
-	int started;
 	struct pollfd fds[TOTAL_FDS];
 	struct sd_bus *bus;
 	struct bt_queue *bt_q;
@@ -488,21 +486,6 @@ static int dispatch_bt(struct btbridged_context *context)
 			goto out1;
 		}
 
-		/*
-		 * If the host sent us a retry, the seq number will not have
-		 * incremented. Drop the message otherwise we might send duplicate
-		 * responses.
-		 * This should deal with when last_seq is 0xff with overflow back
-		 * to zero.
-		 */
-		if (data[2] != context->last_seq + 1 && context->started) {
-			MSG_ERR("Received a retry from the host, dropping seq 0x%02x vs 0x%02x\n", data[2], context->last_seq);
-			r = 0;
-			goto out1;
-		}
-		context->started = 1;
-		context->last_seq = data[2];
-
 		new = bt_q_enqueue(context, data);
 		if (!new) {
 			r = -ENOMEM;
@@ -587,7 +570,6 @@ int main(int argc, char *argv[]) {
 		{0,         0,           0,        0}
 	};
 
-	context.started = 0;
 	context.debug = 0;
 	context.bt_q = NULL;
 
