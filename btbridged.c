@@ -75,8 +75,7 @@ struct bt_queue {
 	struct bt_queue *next;
 };
 
-struct btbridged_context{
-	int debug;
+struct btbridged_context {
 	struct pollfd fds[TOTAL_FDS];
 	struct sd_bus *bus;
 	struct bt_queue *bt_q;
@@ -84,6 +83,7 @@ struct btbridged_context{
 
 static int running = 1;
 static int verbose;
+static int debug;
 
 static struct bt_queue *bt_q_get_head(struct btbridged_context *context)
 {
@@ -142,7 +142,7 @@ static struct bt_queue *bt_q_enqueue(struct btbridged_context *context, uint8_t 
 	if (!n)
 		return NULL;
 
-	if (context->debug) {
+	if (debug) {
 		n->req.data = malloc(len - 4);
 		if (n->req.data)
 			n->req.data = memcpy(n->req.data, bt_data + 4, len - 4);
@@ -528,15 +528,19 @@ static int dispatch_bt(struct btbridged_context *context)
 		MSG_OUT("Sending dbus signal with seq 0x%02x, netfn 0x%02x, lun 0x%02x, cmd 0x%02x\n",
 				new->req.seq, new->req.netfn, new->req.lun, new->req.cmd);
 
-		if (context->debug) {
+		if (debug) {
 			int i;
-
+			/* If debug is on, so will verbose */
 			for (i = 0; i < new->req.data_len; i++) {
-				if (i && i % 8 == 0)
-					MSG_OUT("\n");
-				MSG_OUT("0x%02x ", data[i + 4]);
+				if (i % 8 == 0) {
+					if (i)
+						printf("\n");
+					MSG_OUT("\t");
+				}
+				printf("0x%02x ", data[i + 4]);
 			}
-			MSG_OUT("\n");
+			if (new->req.data_len)
+				printf("\n");
 		}
 
 		/* Note we only actually keep the request data in the queue when debugging */
@@ -597,22 +601,31 @@ int main(int argc, char *argv[]) {
 	uint8_t buf[BT_MAX_MESSAGE];
 
 	static struct option long_options[] = {
-		{"verbose", no_argument, &verbose, 1},
-		{0,         0,           0,        0}
+		{ "verbose", no_argument, &verbose, 1 },
+		{ "debug",   no_argument, &debug,   1 },
+		{ 0,         0,           0,        0 }
 	};
 
-	context.debug = 0;
 	context.bt_q = NULL;
 
 	while ((opt = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
 		switch (opt) {
 			case 0:
-				MSG_OUT("Found verbosity flag\n");
 				break;
 			default:
 				usage(name);
 				exit(EXIT_FAILURE);
 		}
+	}
+
+	if (verbose)
+		MSG_OUT("Found verbosity flag\n");
+
+	if (debug) {
+		if (!verbose)
+			MSG_OUT("Turning on verbosity because debug flag found\n");
+		else
+			MSG_OUT("Found debug flag\n");
 	}
 
 	MSG_OUT("Starting\n");
