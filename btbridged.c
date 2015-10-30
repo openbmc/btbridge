@@ -75,10 +75,7 @@ struct bt_queue {
 	struct bt_queue *next;
 };
 
-struct btbridged_context{
-	int debug;
-	uint8_t last_seq;
-	int started;
+struct btbridged_context {
 	struct pollfd fds[TOTAL_FDS];
 	struct sd_bus *bus;
 	struct bt_queue *bt_q;
@@ -86,6 +83,7 @@ struct btbridged_context{
 
 static int running = 1;
 static int verbose;
+static int debug;
 
 static struct bt_queue *bt_q_get_head(struct btbridged_context *context)
 {
@@ -144,7 +142,7 @@ static struct bt_queue *bt_q_enqueue(struct btbridged_context *context, uint8_t 
 	if (!n)
 		return NULL;
 
-	if (context->debug) {
+	if (debug) {
 		n->req.data = malloc(len - 4);
 		if (n->req.data)
 			n->req.data = memcpy(n->req.data, bt_data + 4, len - 4);
@@ -273,7 +271,7 @@ static int method_send_message(sd_bus_message *msg, void *userdata, sd_bus_error
 		r = 0;
 		goto out;
 	}
-	r = sd_bus_message_read(msg, "yyyyy", &netfn, &lun, &seq, &cmd, &cc);
+	r = sd_bus_message_read(msg, "yyyyy", &seq, &netfn, &lun, &cmd, &cc);
 	if (r < 0) {
 		MSG_ERR("Couldn't parse leading bytes of message: %s\n", strerror(-r));
 		sd_bus_error_set_const(ret_error, "org.openbmc.error", "Bad message");
@@ -295,7 +293,7 @@ static int method_send_message(sd_bus_message *msg, void *userdata, sd_bus_error
 		r = -EINVAL;
 		goto out;
 	}
-	MSG_OUT("Recieved a dbus response for msg with seq 0x%02x\n", seq);
+	MSG_OUT("Received a dbus response for msg with seq 0x%02x\n", seq);
 	bt_msg->call = sd_bus_message_ref(msg);
 	bt_msg->rsp.netfn = netfn;
 	bt_msg->rsp.lun = lun;
@@ -473,6 +471,7 @@ static int dispatch_bt(struct btbridged_context *context)
 	assert(context);
 
 	if (context->fds[BT_FD].revents & POLLIN) {
+		sd_bus_message *msg;
 		int data_len;
 		struct bt_queue *new;
 		uint8_t data[BT_MAX_MESSAGE] = { 0 };
@@ -483,25 +482,10 @@ static int dispatch_bt(struct btbridged_context *context)
 			goto out1;
 		}
 		if (r < data[0] + 1) {
-			MSG_ERR("Short read from bt (%d)\n", r);
-			r = -EINVAL;
-			goto out1;
-		}
-
-		/*
-		 * If the host sent us a retry, the seq number will not have
-		 * incremented. Drop the message otherwise we might send duplicate
-		 * responses.
-		 * This should deal with when last_seq is 0xff with overflow back
-		 * to zero.
-		 */
-		if (data[2] != context->last_seq + 1 && context->started) {
-			MSG_ERR("Received a retry from the host, dropping seq 0x%02x vs 0x%02x\n", data[2], context->last_seq);
+			MSG_ERR("Short read from bt (%d vs %d)\n", r, data[0] + 1);
 			r = 0;
 			goto out1;
 		}
-		context->started = 1;
-		context->last_seq = data[2];
 
 		new = bt_q_enqueue(context, data);
 		if (!new) {
@@ -523,17 +507,51 @@ static int dispatch_bt(struct btbridged_context *context)
 				MSG_ERR("Couldn't set timerfd\n");
 		}
 
-		MSG_OUT("Sending dbus signal with netfn 0x%02x, lun 0x%02x, seq 0x%02x, cmd 0x%02x\n",
-				new->req.netfn, new->req.lun, new->req.seq, new->req.cmd);
-		/* Note we only actually keep the request data in the queue when debugging */
-		r = sd_bus_emit_signal(context->bus, OBJ_NAME, DBUS_NAME, "receivedMessage", "yyyyay",
-				               new->req.netfn, new->req.lun, new->req.seq, new->req.cmd,
-				               new->req.data_len, data+4);
+		r = sd_bus_message_new_signal(context->bus, &msg, OBJ_NAME, DBUS_NAME, "ReceivedMessage");
 		if (r < 0) {
-			MSG_ERR("Couldn't emit dbus signal: %s\n", strerror(-r));
+			MSG_ERR("Failed to create signal: %s\n", strerror(-r));
 			goto out1;
 		}
+
+		r = sd_bus_message_append(msg, "yyyy", new->req.seq, new->req.netfn, new->req.lun, new->req.cmd);
+		if (r < 0) {
+			MSG_ERR("Couldn't append to signal: %s\n", strerror(-r));
+			goto out1_free;
+		}
+
+		r = sd_bus_message_append_array(msg, 'y', data + 4, new->req.data_len);
+		if (r < 0) {
+			MSG_ERR("Couldn't append array to signal\n", strerror(-r));
+			goto out1_free;
+		}
+
+		MSG_OUT("Sending dbus signal with seq 0x%02x, netfn 0x%02x, lun 0x%02x, cmd 0x%02x\n",
+				new->req.seq, new->req.netfn, new->req.lun, new->req.cmd);
+
+		if (debug) {
+			int i;
+			/* If debug is on, so will verbose */
+			for (i = 0; i < new->req.data_len; i++) {
+				if (i % 8 == 0) {
+					if (i)
+						printf("\n");
+					MSG_OUT("\t");
+				}
+				printf("0x%02x ", data[i + 4]);
+			}
+			if (new->req.data_len)
+				printf("\n");
+		}
+
+		/* Note we only actually keep the request data in the queue when debugging */
+		r = sd_bus_send(context->bus, msg, NULL);
+		if (r < 0) {
+			MSG_ERR("Couldn't emit dbus signal: %s\n", strerror(-r));
+			goto out1_free;
+		}
 		r = 0;
+out1_free:
+		sd_bus_message_unref(msg);
 out1:
 		err = r;
 	}
@@ -549,12 +567,12 @@ out1:
 		}
 		r = bt_host_write(context, bt_msg);
 		if (r < 0)
-			MSG_ERR("Problem putting request with netfn 0x%02x, lun 0x%02x, seq 0x%02x, cmd 0x%02x, cc 0x%02x\n"
-					"out to %s", BT_HOST_PATH, bt_msg->rsp.netfn, bt_msg->rsp.lun, bt_msg->rsp.seq,
+			MSG_ERR("Problem putting request with seq 0x%02x, netfn 0x%02x, lun 0x%02x, cmd 0x%02x, cc 0x%02x\n"
+					"out to %s", BT_HOST_PATH, bt_msg->rsp.seq, bt_msg->rsp.netfn, bt_msg->rsp.lun,
 					bt_msg->rsp.cmd, bt_msg->rsp.cc);
 		else
-			MSG_OUT("Completed request with netfn 0x%02x, lun 0x%02x, seq 0x%02x, cmd 0x%02x, cc 0x%02x\n",
-					bt_msg->rsp.netfn, bt_msg->rsp.lun, bt_msg->rsp.seq, bt_msg->rsp.cmd, bt_msg->rsp.cc);
+			MSG_OUT("Completed request with seq 0x%02x, netfn 0x%02x, lun 0x%02x, cmd 0x%02x, cc 0x%02x\n",
+					bt_msg->rsp.seq, bt_msg->rsp.netfn, bt_msg->rsp.lun, bt_msg->rsp.cmd, bt_msg->rsp.cc);
 	}
 out:
 	return err ? err : r;
@@ -570,7 +588,7 @@ static const sd_bus_vtable ipmid_vtable[] = {
 	SD_BUS_VTABLE_START(0),
 	SD_BUS_METHOD("sendMessage", "yyyyyay", "x", &method_send_message, SD_BUS_VTABLE_UNPRIVILEGED),
 	SD_BUS_METHOD("setAttention", "", "x", &method_send_sms_atn, SD_BUS_VTABLE_UNPRIVILEGED),
-	SD_BUS_SIGNAL("receivedMessage", "yyyyay", 0),
+	SD_BUS_SIGNAL("ReceivedMessage", "yyyyay", 0),
 	SD_BUS_VTABLE_END
 };
 
@@ -583,23 +601,31 @@ int main(int argc, char *argv[]) {
 	uint8_t buf[BT_MAX_MESSAGE];
 
 	static struct option long_options[] = {
-		{"verbose", no_argument, &verbose, 1},
-		{0,         0,           0,        0}
+		{ "verbose", no_argument, &verbose, 1 },
+		{ "debug",   no_argument, &debug,   1 },
+		{ 0,         0,           0,        0 }
 	};
 
-	context.started = 0;
-	context.debug = 0;
 	context.bt_q = NULL;
 
 	while ((opt = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
 		switch (opt) {
 			case 0:
-				MSG_OUT("Found verbosity flag\n");
 				break;
 			default:
 				usage(name);
 				exit(EXIT_FAILURE);
 		}
+	}
+
+	if (verbose)
+		MSG_OUT("Found verbosity flag\n");
+
+	if (debug) {
+		if (!verbose)
+			MSG_OUT("Turning on verbosity because debug flag found\n");
+		else
+			MSG_OUT("Found debug flag\n");
 	}
 
 	MSG_OUT("Starting\n");
