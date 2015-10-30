@@ -293,7 +293,7 @@ static int method_send_message(sd_bus_message *msg, void *userdata, sd_bus_error
 		r = -EINVAL;
 		goto out;
 	}
-	MSG_OUT("Recieved a dbus response for msg with seq 0x%02x\n", seq);
+	MSG_OUT("Received a dbus response for msg with seq 0x%02x\n", seq);
 	bt_msg->call = sd_bus_message_ref(msg);
 	bt_msg->rsp.netfn = netfn;
 	bt_msg->rsp.lun = lun;
@@ -509,7 +509,7 @@ static int dispatch_bt(struct btbridged_context *context)
 		MSG_OUT("Sending dbus signal with netfn 0x%02x, lun 0x%02x, seq 0x%02x, cmd 0x%02x\n",
 				new->req.netfn, new->req.lun, new->req.seq, new->req.cmd);
 		/* Note we only actually keep the request data in the queue when debugging */
-		r = sd_bus_emit_signal(context->bus, OBJ_NAME, DBUS_NAME, "receivedMessage", "yyyyay",
+		r = sd_bus_emit_signal(context->bus, OBJ_NAME, DBUS_NAME, "ReceivedMessage", "yyyyay",
 				               new->req.netfn, new->req.lun, new->req.seq, new->req.cmd,
 				               new->req.data_len, data+4);
 		if (r < 0) {
@@ -553,7 +553,7 @@ static const sd_bus_vtable ipmid_vtable[] = {
 	SD_BUS_VTABLE_START(0),
 	SD_BUS_METHOD("sendMessage", "yyyyyay", "x", &method_send_message, SD_BUS_VTABLE_UNPRIVILEGED),
 	SD_BUS_METHOD("setAttention", "", "x", &method_send_sms_atn, SD_BUS_VTABLE_UNPRIVILEGED),
-	SD_BUS_SIGNAL("receivedMessage", "yyyyay", 0),
+	SD_BUS_SIGNAL("ReceivedMessage", "yyyyay", 0),
 	SD_BUS_VTABLE_END
 };
 
