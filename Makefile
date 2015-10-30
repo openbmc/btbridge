@@ -1,4 +1,4 @@
-all: btbridged
+CPPFLAGS=$(shell pkg-config --cflags libsystemd)
+LDFLAGS=$(shell pkg-config --libs libsystemd)
 
-btbridged: btbridged.c
-	$(CC) $(CFLAGS) `pkg-config --cflags --libs libsystemd` $^ -o $@
+all: btbridged
