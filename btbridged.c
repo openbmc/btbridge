@@ -238,12 +238,16 @@ static struct bt_queue *bt_q_dequeue(struct btbridged_context *context)
 
 static int method_send_sms_atn(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error)
 {
-	int r, bt_fd = *(int *)userdata;
+	int r;
+	struct btbridged_context *bt_fd = (struct btbridged_context *)userdata;
+
 	MSG_OUT("Sending SMS_ATN ioctl() to %s\n", BT_HOST_PATH);
-	r = ioctl(bt_fd, BT_HOST_IOCTL_SMS_ATN);
+
+
+	r = ioctl(bt_fd->fds[BT_FD].fd, BT_HOST_IOCTL_SMS_ATN);
 	if (r == -1) {
 		r = errno;
-		MSG_ERR("Couldn't ioctl() to %s: %s\n", BT_HOST_PATH, strerror(r));
+		MSG_ERR("Couldn't ioctl() to 0x%x, %s: %s\n", bt_fd->fds[BT_FD].fd, BT_HOST_PATH, strerror(r));
 		return sd_bus_reply_method_errno(msg, errno, ret_error);
 	}
 
