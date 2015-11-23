@@ -13,22 +13,22 @@
  *	limitations under the License.
  */
 
+#include <assert.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <getopt.h>
+#include <limits.h>
+#include <poll.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <sys/timerfd.h>
 #include <syslog.h>
-#include <poll.h>
-#include <limits.h>
-#include <getopt.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/timerfd.h>
 #include <time.h>
-#include <assert.h>
+#include <unistd.h>
 
 #include <linux/bt-host.h>
 
