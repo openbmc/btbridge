@@ -25,6 +25,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <sys/mman.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/timerfd.h>
 #include <time.h>
