@@ -260,10 +260,9 @@ static int method_send_message(sd_bus_message *msg, void *userdata, sd_bus_error
 {
 	struct btbridged_context *context;
 	struct bt_queue *bt_msg;
-	uint8_t *data, *all_data;
-	size_t data_sz, all_data_sz;
+	uint8_t *data;
+	size_t data_sz;
 	uint8_t netfn, lun, seq, cmd, cc;
-	uint64_t cookie;
 	/*
 	 * Doesn't say it anywhere explicitly but it looks like returning 0 or
 	 * negative is BAD...
@@ -477,7 +476,6 @@ static int dispatch_bt(struct btbridged_context *context)
 
 	if (context->fds[BT_FD].revents & POLLIN) {
 		sd_bus_message *msg;
-		int data_len;
 		struct bt_queue *new;
 		uint8_t data[BT_MAX_MESSAGE] = { 0 };
 
@@ -599,11 +597,8 @@ static const sd_bus_vtable ipmid_vtable[] = {
 
 int main(int argc, char *argv[]) {
 	struct btbridged_context context;
-	struct bt_queue *bt_q;
-	const char *path;
 	const char *name = argv[0];
-	int opt, polled, r, daemonise;
-	uint8_t buf[BT_MAX_MESSAGE];
+	int opt, polled, r;
 
 	static struct option long_options[] = {
 		{ "verbose", no_argument, &verbose, 1 },
