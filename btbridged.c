@@ -237,13 +237,14 @@ static struct bt_queue *bt_q_dequeue(struct btbridged_context *context)
 	return r;
 }
 
-static int method_send_sms_atn(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error)
+static int method_send_sms_atn(sd_bus_message *msg, void *userdata,
+			       sd_bus_error *ret_error)
 {
 	int r;
-	struct btbridged_context *bt_fd = (struct btbridged_context *)userdata;
+	struct btbridged_context *bt_fd = userdata;
 
-	MSG_OUT("Sending SMS_ATN ioctl() to %s\n", BT_HOST_PATH);
-
+	MSG_OUT("Sending SMS_ATN ioctl (%d) to %s\n",
+			BT_HOST_IOCTL_SMS_ATN, BT_HOST_PATH);
 
 	r = ioctl(bt_fd->fds[BT_FD].fd, BT_HOST_IOCTL_SMS_ATN);
 	if (r == -1) {
