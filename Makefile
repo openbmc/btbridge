@@ -1,4 +1,4 @@
-CFLAGS	= $(shell pkg-config --cflags libsystemd) -Wall -O2
+CFLAGS	= $(shell pkg-config --cflags libsystemd) -Wall -O2 -g
 LDLIBS	= $(shell pkg-config --libs libsystemd)
 
 ifdef KERNEL_HEADERS
