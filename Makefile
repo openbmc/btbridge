@@ -1,5 +1,5 @@
-CPPFLAGS=$(shell pkg-config --cflags libsystemd)
-LDFLAGS=$(shell pkg-config --libs libsystemd)
+CFLAGS	= $(shell pkg-config --cflags libsystemd) -Wall -O2
+LDLIBS	= $(shell pkg-config --libs libsystemd)
 
 EXE = btbridged
 
