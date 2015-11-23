@@ -361,7 +361,7 @@ static int bt_host_write(struct btbridged_context *context, struct bt_queue *bt_
 		memcpy(data + 5, bt_msg->rsp.data, bt_msg->rsp.data_len);
 	/* Count the data[0] byte */
 	len = write(context->fds[BT_FD].fd, data, data[0] + 1);
-	if (r == -1) {
+	if (len == -1) {
 		r = errno;
 		MSG_ERR("Error writing to %s: %s\n", BT_HOST_PATH, strerror(errno));
 		if (bt_msg->call) {
