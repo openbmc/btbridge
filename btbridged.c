@@ -13,22 +13,23 @@
  *	limitations under the License.
  */
 
+#include <assert.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <getopt.h>
+#include <limits.h>
+#include <poll.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <sys/timerfd.h>
 #include <syslog.h>
-#include <poll.h>
-#include <limits.h>
-#include <getopt.h>
+#include <sys/mman.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <sys/timerfd.h>
 #include <time.h>
-#include <assert.h>
+#include <unistd.h>
 
 #include <linux/bt-host.h>
 
@@ -236,13 +237,14 @@ static struct bt_queue *bt_q_dequeue(struct btbridged_context *context)
 	return r;
 }
 
-static int method_send_sms_atn(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error)
+static int method_send_sms_atn(sd_bus_message *msg, void *userdata,
+			       sd_bus_error *ret_error)
 {
 	int r;
-	struct btbridged_context *bt_fd = (struct btbridged_context *)userdata;
+	struct btbridged_context *bt_fd = userdata;
 
-	MSG_OUT("Sending SMS_ATN ioctl() to %s\n", BT_HOST_PATH);
-
+	MSG_OUT("Sending SMS_ATN ioctl (%d) to %s\n",
+			BT_HOST_IOCTL_SMS_ATN, BT_HOST_PATH);
 
 	r = ioctl(bt_fd->fds[BT_FD].fd, BT_HOST_IOCTL_SMS_ATN);
 	if (r == -1) {
@@ -259,10 +261,9 @@ static int method_send_message(sd_bus_message *msg, void *userdata, sd_bus_error
 {
 	struct btbridged_context *context;
 	struct bt_queue *bt_msg;
-	uint8_t *data, *all_data;
-	size_t data_sz, all_data_sz;
+	uint8_t *data;
+	size_t data_sz;
 	uint8_t netfn, lun, seq, cmd, cc;
-	uint64_t cookie;
 	/*
 	 * Doesn't say it anywhere explicitly but it looks like returning 0 or
 	 * negative is BAD...
@@ -351,7 +352,7 @@ static int bt_host_write(struct btbridged_context *context, struct bt_queue *bt_
 	data[3] = bt_msg->rsp.cmd;
 	data[4] = bt_msg->rsp.cc;
 	if (bt_msg->rsp.data_len > sizeof(data) - 5) {
-		MSG_ERR("Response message size (%d) too big, truncating\n", bt_msg->rsp.data_len);
+		MSG_ERR("Response message size (%zu) too big, truncating\n", bt_msg->rsp.data_len);
 		bt_msg->rsp.data_len = sizeof(data) - 5;
 	}
 	/* netfn/len + seq + cmd + cc = 4 */
@@ -360,7 +361,7 @@ static int bt_host_write(struct btbridged_context *context, struct bt_queue *bt_
 		memcpy(data + 5, bt_msg->rsp.data, bt_msg->rsp.data_len);
 	/* Count the data[0] byte */
 	len = write(context->fds[BT_FD].fd, data, data[0] + 1);
-	if (r == -1) {
+	if (len == -1) {
 		r = errno;
 		MSG_ERR("Error writing to %s: %s\n", BT_HOST_PATH, strerror(errno));
 		if (bt_msg->call) {
@@ -476,7 +477,6 @@ static int dispatch_bt(struct btbridged_context *context)
 
 	if (context->fds[BT_FD].revents & POLLIN) {
 		sd_bus_message *msg;
-		int data_len;
 		struct bt_queue *new;
 		uint8_t data[BT_MAX_MESSAGE] = { 0 };
 
@@ -525,7 +525,7 @@ static int dispatch_bt(struct btbridged_context *context)
 
 		r = sd_bus_message_append_array(msg, 'y', data + 4, new->req.data_len);
 		if (r < 0) {
-			MSG_ERR("Couldn't append array to signal\n", strerror(-r));
+			MSG_ERR("Couldn't append array to signal: %s\n", strerror(-r));
 			goto out1_free;
 		}
 
@@ -565,15 +565,15 @@ out1:
 		bt_msg = bt_q_get_msg(context);
 		if (!bt_msg) {
 			/* Odd, this shouldn't really happen */
-			MSG_ERR("Got a POLLOUT on %s but no message is ready to be written\n");
+			MSG_ERR("Got a POLLOUT but no message is ready to be written\n");
 			r = 0;
 			goto out;
 		}
 		r = bt_host_write(context, bt_msg);
 		if (r < 0)
 			MSG_ERR("Problem putting request with seq 0x%02x, netfn 0x%02x, lun 0x%02x, cmd 0x%02x, cc 0x%02x\n"
-					"out to %s", BT_HOST_PATH, bt_msg->rsp.seq, bt_msg->rsp.netfn, bt_msg->rsp.lun,
-					bt_msg->rsp.cmd, bt_msg->rsp.cc);
+					"out to %s", bt_msg->rsp.seq, bt_msg->rsp.netfn, bt_msg->rsp.lun,
+					bt_msg->rsp.cmd, bt_msg->rsp.cc, BT_HOST_PATH);
 		else
 			MSG_OUT("Completed request with seq 0x%02x, netfn 0x%02x, lun 0x%02x, cmd 0x%02x, cc 0x%02x\n",
 					bt_msg->rsp.seq, bt_msg->rsp.netfn, bt_msg->rsp.lun, bt_msg->rsp.cmd, bt_msg->rsp.cc);
@@ -598,11 +598,8 @@ static const sd_bus_vtable ipmid_vtable[] = {
 
 int main(int argc, char *argv[]) {
 	struct btbridged_context context;
-	struct bt_queue *bt_q;
-	const char *path;
 	const char *name = argv[0];
-	int opt, polled, r, daemonise;
-	uint8_t buf[BT_MAX_MESSAGE];
+	int opt, polled, r;
 
 	static struct option long_options[] = {
 		{ "verbose", no_argument, &verbose, 1 },
