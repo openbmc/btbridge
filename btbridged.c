@@ -597,17 +597,17 @@ static const sd_bus_vtable ipmid_vtable[] = {
 };
 
 int main(int argc, char *argv[]) {
-	struct btbridged_context context;
+	struct btbridged_context *context;
 	const char *name = argv[0];
 	int opt, polled, r;
 
-	static struct option long_options[] = {
+	static const struct option long_options[] = {
 		{ "verbose", no_argument, &verbose, 1 },
 		{ "debug",   no_argument, &debug,   1 },
 		{ 0,         0,           0,        0 }
 	};
 
-	context.bt_q = NULL;
+	context = calloc(1, sizeof(*context));
 
 	while ((opt = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
 		switch (opt) {
@@ -630,62 +630,62 @@ int main(int argc, char *argv[]) {
 	}
 
 	MSG_OUT("Starting\n");
-	r = sd_bus_default_system(&context.bus);
+	r = sd_bus_default_system(&context->bus);
 	if (r < 0) {
 		MSG_ERR("Failed to connect to system bus: %s\n", strerror(-r));
 		goto finish;
 	}
 
 	MSG_OUT("Registering dbus methods/signals\n");
-	r = sd_bus_add_object_vtable(context.bus,
+	r = sd_bus_add_object_vtable(context->bus,
 	                             NULL,
 	                             OBJ_NAME,
 	                             DBUS_NAME,
 	                             ipmid_vtable,
-	                             &context);
+	                             context);
 	if (r < 0) {
 		MSG_ERR("Failed to issue method call: %s\n", strerror(-r));
 		goto finish;
 	}
 
 	MSG_OUT("Requesting dbus name: %s\n", DBUS_NAME);
-	r = sd_bus_request_name(context.bus, DBUS_NAME, SD_BUS_NAME_ALLOW_REPLACEMENT|SD_BUS_NAME_REPLACE_EXISTING);
+	r = sd_bus_request_name(context->bus, DBUS_NAME, SD_BUS_NAME_ALLOW_REPLACEMENT|SD_BUS_NAME_REPLACE_EXISTING);
 	if (r < 0) {
 		MSG_ERR("Failed to acquire service name: %s\n", strerror(-r));
 		goto finish;
 	}
 
 	MSG_OUT("Getting dbus file descriptors\n");
-	context.fds[SD_BUS_FD].fd = sd_bus_get_fd(context.bus);
-	if (context.fds[SD_BUS_FD].fd < 0) {
+	context->fds[SD_BUS_FD].fd = sd_bus_get_fd(context->bus);
+	if (context->fds[SD_BUS_FD].fd < 0) {
 		r = -errno;
 		MSG_OUT("Couldn't get the bus file descriptor: %s\n", strerror(errno));
 		goto finish;
 	}
 
 	MSG_OUT("Opening %s\n", BT_HOST_PATH);
-	context.fds[BT_FD].fd = open(BT_HOST_PATH, O_RDWR | O_NONBLOCK);
-	if (context.fds[BT_FD].fd < 0) {
+	context->fds[BT_FD].fd = open(BT_HOST_PATH, O_RDWR | O_NONBLOCK);
+	if (context->fds[BT_FD].fd < 0) {
 		r = -errno;
 		MSG_ERR("Couldn't open %s with flags O_RDWR: %s\n", BT_HOST_PATH, strerror(errno));
 		goto finish;
 	}
 
 	MSG_OUT("Creating timer fd\n");
-	context.fds[TIMER_FD].fd = timerfd_create(CLOCK_MONOTONIC, 0);
-	if (context.fds[TIMER_FD].fd < 0) {
+	context->fds[TIMER_FD].fd = timerfd_create(CLOCK_MONOTONIC, 0);
+	if (context->fds[TIMER_FD].fd < 0) {
 		r = -errno;
 		MSG_ERR("Couldn't create timer fd: %s\n", strerror(errno));
 		goto finish;
 	}
-	context.fds[SD_BUS_FD].events = POLLIN;
-	context.fds[BT_FD].events = POLLIN;
-	context.fds[TIMER_FD].events = POLLIN;
+	context->fds[SD_BUS_FD].events = POLLIN;
+	context->fds[BT_FD].events = POLLIN;
+	context->fds[TIMER_FD].events = POLLIN;
 
 	MSG_OUT("Entering polling loop\n");
 
 	while (running) {
-		polled = poll(context.fds, TOTAL_FDS, 1000);
+		polled = poll(context->fds, TOTAL_FDS, 1000);
 		if (polled == 0)
 			continue;
 		if (polled < 0) {
@@ -693,17 +693,17 @@ int main(int argc, char *argv[]) {
 			MSG_ERR("Error from poll(): %s\n", strerror(errno));
 			goto finish;
 		}
-		r = dispatch_sd_bus(&context);
+		r = dispatch_sd_bus(context);
 		if (r < 0) {
 			MSG_ERR("Error handling dbus event: %s\n", strerror(-r));
 			goto finish;
 		}
-		r = dispatch_bt(&context);
+		r = dispatch_bt(context);
 		if (r < 0) {
 			MSG_ERR("Error handling BT event: %s\n", strerror(-r));
 			goto finish;
 		}
-		r = dispatch_timer(&context);
+		r = dispatch_timer(context);
 		if (r < 0) {
 			MSG_ERR("Error handling timer event: %s\n", strerror(-r));
 			goto finish;
@@ -711,13 +711,14 @@ int main(int argc, char *argv[]) {
 	}
 
 finish:
-	if (bt_q_get_head(&context)) {
+	if (bt_q_get_head(context)) {
 		MSG_ERR("Unresponded BT Message!\n");
-		while (bt_q_dequeue(&context));
+		while (bt_q_dequeue(context));
 	}
-	close(context.fds[BT_FD].fd);
-	close(context.fds[TIMER_FD].fd);
-	sd_bus_unref(context.bus);
+	close(context->fds[BT_FD].fd);
+	close(context->fds[TIMER_FD].fd);
+	sd_bus_unref(context->bus);
+	free(context);
 
 	return r;
 }
