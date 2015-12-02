@@ -35,7 +35,7 @@
 
 #include <systemd/sd-bus.h>
 
-#define PREFIX "[BTBRIDGED] "
+#define PREFIX "BTBRIDGED"
 
 #define BT_HOST_PATH "/dev/bt-host"
 #define BT_HOST_TIMEOUT_SEC 1
@@ -49,13 +49,8 @@
 #define TIMER_FD 2
 #define TOTAL_FDS 3
 
-#define MSG_OUT(f_, ...) do { if (verbose) { printf(PREFIX); printf((f_), ##__VA_ARGS__); } } while(0)
-#define MSG_ERR(f_, ...) do {  \
-                         	if (verbose) { \
-                         		fprintf(stderr, PREFIX); \
-                         		fprintf(stderr, (f_), ##__VA_ARGS__); \
-                         	} \
-                         } while(0)
+#define MSG_OUT(f_, ...) do { if (verbose) { bt_log(LOG_INFO, f_, ##__VA_ARGS__); } } while(0)
+#define MSG_ERR(f_, ...) do { if (verbose) { bt_log(LOG_ERR, f_, ##__VA_ARGS__); } } while(0)
 
 struct ipmi_msg {
 	uint8_t netfn;
@@ -82,9 +77,32 @@ struct btbridged_context {
 	struct bt_queue *bt_q;
 };
 
+static void (*bt_vlog)(int p, const char *fmt, va_list args);
 static int running = 1;
 static int verbose;
 static int debug;
+
+static void bt_log_console(int p, const char *fmt, va_list args)
+{
+	struct timespec time;
+	FILE *s = (p < LOG_WARNING) ? stdout : stderr;
+
+	clock_gettime(CLOCK_REALTIME, &time);
+
+	fprintf(s, "[%s %ld.%.9ld] ", PREFIX, time.tv_sec, time.tv_nsec);
+
+	vfprintf(s, fmt, args);
+}
+
+__attribute__((format(printf, 2, 3)))
+static void bt_log(int p, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	bt_vlog(p, fmt, args);
+	va_end(args);
+}
 
 static struct bt_queue *bt_q_get_head(struct btbridged_context *context)
 {
@@ -584,9 +602,10 @@ out:
 
 static void usage(const char *name)
 {
-	fprintf(stderr, "Usage %s [ --debug | --verbose ]\n", name);
+	fprintf(stderr, "Usage %s [ --debug | --verbose | --syslog ]\n", name);
 	fprintf(stderr, "\t--debug\t Implies --verbose\n\t Dumps entire message contents to console\n");
 	fprintf(stderr, "\t--verbose\t Be verbose\n\n");
+	fprintf(stderr, "\t--syslog\t Log output to syslog (pointless without --verbose)\n");
 }
 
 static const sd_bus_vtable ipmid_vtable[] = {
@@ -603,16 +622,25 @@ int main(int argc, char *argv[]) {
 	int opt, polled, r;
 
 	static const struct option long_options[] = {
-		{ "verbose", no_argument, &verbose, 1 },
-		{ "debug",   no_argument, &debug,   1 },
-		{ 0,         0,           0,        0 }
+		{ "debug",   no_argument, &debug,   1   },
+		{ "verbose", no_argument, &verbose, 1   },
+		{ "syslog",  no_argument, 0,        's' },
+		{ 0,         0,           0,        0   }
 	};
 
 	context = calloc(1, sizeof(*context));
 
+	bt_vlog = &bt_log_console;
 	while ((opt = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
 		switch (opt) {
 			case 0:
+				break;
+			case 's':
+				/* Avoid a double openlog() */
+				if (bt_vlog != &vsyslog) {
+					openlog(PREFIX, LOG_ODELAY, LOG_DAEMON);
+					bt_vlog = &vsyslog;
+				}
 				break;
 			default:
 				usage(name);
