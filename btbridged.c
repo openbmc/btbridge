@@ -584,7 +584,8 @@ out:
 
 static void usage(const char *name)
 {
-	fprintf(stderr, "Usage %s\n", name);
+	fprintf(stderr, "Usage %s [ --debug | --verbose ]\n", name);
+	fprintf(stderr, "\t--debug\t Implies --verbose\n\t Dumps entire message contents to console\n");
 	fprintf(stderr, "\t--verbose\t Be verbose\n\n");
 }
 
