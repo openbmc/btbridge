@@ -624,10 +624,12 @@ int main(int argc, char *argv[]) {
 		MSG_OUT("Found verbosity flag\n");
 
 	if (debug) {
-		if (!verbose)
+		if (!verbose) {
+			verbose = 1;
 			MSG_OUT("Turning on verbosity because debug flag found\n");
-		else
+		} else {
 			MSG_OUT("Found debug flag\n");
+		}
 	}
 
 	MSG_OUT("Starting\n");
