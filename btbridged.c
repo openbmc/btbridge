@@ -35,7 +35,7 @@
 
 #include <systemd/sd-bus.h>
 
-#define PREFIX "[BTBRIDGED] "
+#define PREFIX "BTBRIDGED"
 
 #define BT_HOST_PATH "/dev/bt-host"
 #define BT_HOST_TIMEOUT_SEC 1
@@ -49,13 +49,8 @@
 #define TIMER_FD 2
 #define TOTAL_FDS 3
 
-#define MSG_OUT(f_, ...) do { if (verbose) { printf(PREFIX); printf((f_), ##__VA_ARGS__); } } while(0)
-#define MSG_ERR(f_, ...) do {  \
-                         	if (verbose) { \
-                         		fprintf(stderr, PREFIX); \
-                         		fprintf(stderr, (f_), ##__VA_ARGS__); \
-                         	} \
-                         } while(0)
+#define MSG_OUT(f_, ...) do { if (verbosity != BT_LOG_NONE) { bt_log(LOG_INFO, f_, ##__VA_ARGS__); } } while(0)
+#define MSG_ERR(f_, ...) do { if (verbosity != BT_LOG_NONE) { bt_log(LOG_ERR, f_, ##__VA_ARGS__); } } while(0)
 
 struct ipmi_msg {
 	uint8_t netfn;
@@ -82,9 +77,35 @@ struct btbridged_context {
 	struct bt_queue *bt_q;
 };
 
+static void (*bt_vlog)(int p, const char *fmt, va_list args);
 static int running = 1;
-static int verbose;
-static int debug;
+static enum {
+   BT_LOG_NONE = 0,
+   BT_LOG_VERBOSE,
+   BT_LOG_DEBUG
+} verbosity;
+
+static void bt_log_console(int p, const char *fmt, va_list args)
+{
+	struct timespec time;
+	FILE *s = (p < LOG_WARNING) ? stdout : stderr;
+
+	clock_gettime(CLOCK_REALTIME, &time);
+
+	fprintf(s, "[%s %ld.%.9ld] ", PREFIX, time.tv_sec, time.tv_nsec);
+
+	vfprintf(s, fmt, args);
+}
+
+__attribute__((format(printf, 2, 3)))
+static void bt_log(int p, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	bt_vlog(p, fmt, args);
+	va_end(args);
+}
 
 static struct bt_queue *bt_q_get_head(struct btbridged_context *context)
 {
@@ -143,7 +164,7 @@ static struct bt_queue *bt_q_enqueue(struct btbridged_context *context, uint8_t 
 	if (!n)
 		return NULL;
 
-	if (debug) {
+	if (verbosity == BT_LOG_DEBUG) {
 		n->req.data = malloc(len - 4);
 		if (n->req.data)
 			n->req.data = memcpy(n->req.data, bt_data + 4, len - 4);
@@ -532,9 +553,8 @@ static int dispatch_bt(struct btbridged_context *context)
 		MSG_OUT("Sending dbus signal with seq 0x%02x, netfn 0x%02x, lun 0x%02x, cmd 0x%02x\n",
 				new->req.seq, new->req.netfn, new->req.lun, new->req.cmd);
 
-		if (debug) {
+		if (verbosity == BT_LOG_DEBUG) {
 			int i;
-			/* If debug is on, so will verbose */
 			for (i = 0; i < new->req.data_len; i++) {
 				if (i % 8 == 0) {
 					if (i)
@@ -584,8 +604,10 @@ out:
 
 static void usage(const char *name)
 {
-	fprintf(stderr, "Usage %s\n", name);
-	fprintf(stderr, "\t--verbose\t Be verbose\n\n");
+	fprintf(stderr, "Usage %s [ --v[v] | --syslog ]\n", name);
+	fprintf(stderr, "\t--v\t Be verbose\n");
+	fprintf(stderr, "\t--vv\t Be verbose and dump entire messages\n");
+	fprintf(stderr, "\t--syslog\t Log output to syslog (pointless without --verbose)\n\n");
 }
 
 static const sd_bus_vtable ipmid_vtable[] = {
@@ -602,16 +624,25 @@ int main(int argc, char *argv[]) {
 	int opt, polled, r;
 
 	static const struct option long_options[] = {
-		{ "verbose", no_argument, &verbose, 1 },
-		{ "debug",   no_argument, &debug,   1 },
-		{ 0,         0,           0,        0 }
+		{ "v",       no_argument, (int *)&verbosity, BT_LOG_VERBOSE },
+		{ "vv",      no_argument, (int *)&verbosity, BT_LOG_DEBUG   },
+		{ "syslog",  no_argument, 0,          's'         },
+		{ 0,         0,           0,          0           }
 	};
 
 	context = calloc(1, sizeof(*context));
 
+	bt_vlog = &bt_log_console;
 	while ((opt = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
 		switch (opt) {
 			case 0:
+				break;
+			case 's':
+				/* Avoid a double openlog() */
+				if (bt_vlog != &vsyslog) {
+					openlog(PREFIX, LOG_ODELAY, LOG_DAEMON);
+					bt_vlog = &vsyslog;
+				}
 				break;
 			default:
 				usage(name);
@@ -619,15 +650,11 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	if (verbose)
-		MSG_OUT("Found verbosity flag\n");
+	if (verbosity == BT_LOG_VERBOSE)
+		MSG_OUT("Verbose logging\n");
 
-	if (debug) {
-		if (!verbose)
-			MSG_OUT("Turning on verbosity because debug flag found\n");
-		else
-			MSG_OUT("Found debug flag\n");
-	}
+	if (verbosity == BT_LOG_DEBUG)
+		MSG_OUT("Debug logging\n");
 
 	MSG_OUT("Starting\n");
 	r = sd_bus_default_system(&context->bus);
