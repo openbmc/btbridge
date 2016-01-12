@@ -189,19 +189,16 @@ static void bt_q_free(struct bt_queue *bt_q)
 static struct bt_queue *bt_q_drop(struct btbridged_context *context, struct bt_queue *element)
 {
 	struct bt_queue *r;
-	struct bt_queue *bt_q;
 
 	assert(context);
 
-	bt_q = context->bt_q;
-	if (!element || !bt_q)
+	if (!element || !context || !context->bt_q)
 		return NULL;
 
-
-	r = bt_q;
-	if (r == bt_q) {
-		context->bt_q = bt_q->next;
+	if (element == context->bt_q) {
+		context->bt_q = context->bt_q->next;
 	} else {
+		r = context->bt_q;
 		while (r && r->next != element)
 			r = r->next;
 
