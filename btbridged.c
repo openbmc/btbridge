@@ -489,7 +489,7 @@ static int dispatch_sd_bus(struct btbridged_context *context)
 static int dispatch_bt(struct btbridged_context *context)
 {
 	int err = 0;
-	int r;
+	int r = 0;
 
 	assert(context);
 
