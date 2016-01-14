@@ -317,6 +317,8 @@ static int method_send_message(sd_bus_message *msg, void *userdata, sd_bus_error
 		goto out;
 	}
 	MSG_OUT("Received a dbus response for msg with seq 0x%02x\n", seq);
+	MSG_OUT("(netfn 0x%02x lun 0x%02x cmd 0x%02x cc 0x%02x with data of size %lu)\n",
+			netfn, lun, cmd, cc, data_sz);
 	bt_msg->call = sd_bus_message_ref(msg);
 	bt_msg->rsp.netfn = netfn;
 	bt_msg->rsp.lun = lun;
