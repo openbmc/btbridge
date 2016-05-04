@@ -6,4 +6,4 @@ services:
 language: c
 
 script:
-    - ./.build.sh
+    - ./travis/build.sh
