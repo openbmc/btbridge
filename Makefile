@@ -9,5 +9,12 @@ EXE = btbridged
 
 all: $(EXE)
 
+.PHONY += test
+test: $(EXE) ipmi-bouncer bt-host
+
+bt-host: bt-host.c
+	gcc -shared -fPIC -ldl $(CFLAGS) $^ -o $@.so
+
 clean:
 	rm -rf *.o $(EXE)
+	rm -rf bt-host.so ipmi-bouncer
