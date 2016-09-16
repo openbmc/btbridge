@@ -31,16 +31,16 @@
 #include <time.h>
 #include <unistd.h>
 
-#include <linux/bt-host.h>
+#include <linux/bt-bmc.h>
 
 #include <systemd/sd-bus.h>
 
-static const char *bt_bmc_device = "/dev/bt-host";
+static const char *bt_bmc_device = "/dev/ipmi-bt-host";
 
 #define PREFIX "BTBRIDGED"
 
-#define BT_HOST_PATH bt_bmc_device
-#define BT_HOST_TIMEOUT_SEC 1
+#define BT_BMC_PATH bt_bmc_device
+#define BT_BMC_TIMEOUT_SEC 1
 #define BT_MAX_MESSAGE 64
 
 #define DBUS_NAME "org.openbmc.HostIpmi"
@@ -264,12 +264,12 @@ static int method_send_sms_atn(sd_bus_message *msg, void *userdata,
 	struct btbridged_context *bt_fd = userdata;
 
 	MSG_OUT("Sending SMS_ATN ioctl (%d) to %s\n",
-			BT_HOST_IOCTL_SMS_ATN, BT_HOST_PATH);
+			BT_BMC_IOCTL_SMS_ATN, BT_BMC_PATH);
 
-	r = ioctl(bt_fd->fds[BT_FD].fd, BT_HOST_IOCTL_SMS_ATN);
+	r = ioctl(bt_fd->fds[BT_FD].fd, BT_BMC_IOCTL_SMS_ATN);
 	if (r == -1) {
 		r = errno;
-		MSG_ERR("Couldn't ioctl() to 0x%x, %s: %s\n", bt_fd->fds[BT_FD].fd, BT_HOST_PATH, strerror(r));
+		MSG_ERR("Couldn't ioctl() to 0x%x, %s: %s\n", bt_fd->fds[BT_FD].fd, BT_BMC_PATH, strerror(r));
 		return sd_bus_reply_method_errno(msg, errno, ret_error);
 	}
 
@@ -356,7 +356,7 @@ static int bt_host_write(struct btbridged_context *context, struct bt_queue *bt_
 		ts.it_interval.tv_nsec = 0;
 		if (head->next) {
 			ts.it_value = head->next->start;
-			ts.it_value.tv_sec += BT_HOST_TIMEOUT_SEC;
+			ts.it_value.tv_sec += BT_BMC_TIMEOUT_SEC;
 			MSG_OUT("Adjusting timer for next element\n");
 		} else {
 			ts.it_value.tv_nsec = 0;
@@ -383,7 +383,7 @@ static int bt_host_write(struct btbridged_context *context, struct bt_queue *bt_
 	len = write(context->fds[BT_FD].fd, data, data[0] + 1);
 	if (len == -1) {
 		r = errno;
-		MSG_ERR("Error writing to %s: %s\n", BT_HOST_PATH, strerror(errno));
+		MSG_ERR("Error writing to %s: %s\n", BT_BMC_PATH, strerror(errno));
 		if (bt_msg->call) {
 			r = sd_bus_message_new_method_errno(bt_msg->call, &msg, r, NULL);
 			if (r < 0)
@@ -392,9 +392,9 @@ static int bt_host_write(struct btbridged_context *context, struct bt_queue *bt_
 		goto out;
 	} else {
 		if (len != data[0] + 1)
-			MSG_ERR("Possible short write to %s, desired len: %d, written len: %d\n", BT_HOST_PATH, data[0] + 1, len);
+			MSG_ERR("Possible short write to %s, desired len: %d, written len: %d\n", BT_BMC_PATH, data[0] + 1, len);
 		else
-			MSG_OUT("Successfully wrote %d of %d bytes to %s\n", len, data[0] + 1, BT_HOST_PATH);
+			MSG_OUT("Successfully wrote %d of %d bytes to %s\n", len, data[0] + 1, BT_BMC_PATH);
 
 		if (bt_msg->call) {
 			r = sd_bus_message_new_method_return(bt_msg->call, &msg);
@@ -525,7 +525,7 @@ static int dispatch_bt(struct btbridged_context *context)
 			ts.it_interval.tv_sec = 0;
 			ts.it_interval.tv_nsec = 0;
 			ts.it_value.tv_nsec = 0;
-			ts.it_value.tv_sec = BT_HOST_TIMEOUT_SEC;
+			ts.it_value.tv_sec = BT_BMC_TIMEOUT_SEC;
 			r = timerfd_settime(context->fds[TIMER_FD].fd, 0, &ts, NULL);
 			if (r == -1)
 				MSG_ERR("Couldn't set timerfd\n");
@@ -592,7 +592,7 @@ out1:
 		if (r < 0)
 			MSG_ERR("Problem putting request with seq 0x%02x, netfn 0x%02x, lun 0x%02x, cmd 0x%02x, cc 0x%02x\n"
 					"out to %s", bt_msg->rsp.seq, bt_msg->rsp.netfn, bt_msg->rsp.lun,
-					bt_msg->rsp.cmd, bt_msg->rsp.cc, BT_HOST_PATH);
+					bt_msg->rsp.cmd, bt_msg->rsp.cc, BT_BMC_PATH);
 		else
 			MSG_OUT("Completed request with seq 0x%02x, netfn 0x%02x, lun 0x%02x, cmd 0x%02x, cc 0x%02x\n",
 					bt_msg->rsp.seq, bt_msg->rsp.netfn, bt_msg->rsp.lun, bt_msg->rsp.cmd, bt_msg->rsp.cc);
@@ -696,11 +696,11 @@ int main(int argc, char *argv[]) {
 		goto finish;
 	}
 
-	MSG_OUT("Opening %s\n", BT_HOST_PATH);
-	context->fds[BT_FD].fd = open(BT_HOST_PATH, O_RDWR | O_NONBLOCK);
+	MSG_OUT("Opening %s\n", BT_BMC_PATH);
+	context->fds[BT_FD].fd = open(BT_BMC_PATH, O_RDWR | O_NONBLOCK);
 	if (context->fds[BT_FD].fd < 0) {
 		r = -errno;
-		MSG_ERR("Couldn't open %s with flags O_RDWR: %s\n", BT_HOST_PATH, strerror(errno));
+		MSG_ERR("Couldn't open %s with flags O_RDWR: %s\n", BT_BMC_PATH, strerror(errno));
 		goto finish;
 	}
 
