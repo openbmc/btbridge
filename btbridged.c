@@ -35,9 +35,11 @@
 
 #include <systemd/sd-bus.h>
 
+static const char *bt_bmc_device = "/dev/bt-host";
+
 #define PREFIX "BTBRIDGED"
 
-#define BT_HOST_PATH "/dev/bt-host"
+#define BT_HOST_PATH bt_bmc_device
 #define BT_HOST_TIMEOUT_SEC 1
 #define BT_MAX_MESSAGE 64
 
@@ -601,10 +603,13 @@ out:
 
 static void usage(const char *name)
 {
-	fprintf(stderr, "Usage %s [ --v[v] | --syslog ]\n", name);
-	fprintf(stderr, "\t--v\t Be verbose\n");
-	fprintf(stderr, "\t--vv\t Be verbose and dump entire messages\n");
-	fprintf(stderr, "\t--syslog\t Log output to syslog (pointless without --verbose)\n\n");
+	fprintf(stderr, "\
+Usage %s [--v[v] | --syslog] [-d <DEVICE>]\n\
+  --v                    Be verbose\n\
+  --vv                   Be verbose and dump entire messages\n\
+  -s, --syslog           Log output to syslog (pointless without --verbose)\n\
+  -d, --device <DEVICE>  use <DEVICE> file. Default is '%s'\n\n",
+		name, bt_bmc_device);
 }
 
 static const sd_bus_vtable ipmid_vtable[] = {
@@ -621,6 +626,7 @@ int main(int argc, char *argv[]) {
 	int opt, polled, r;
 
 	static const struct option long_options[] = {
+		{ "device",  required_argument, NULL, 'd' },
 		{ "v",       no_argument, (int *)&verbosity, BT_LOG_VERBOSE },
 		{ "vv",      no_argument, (int *)&verbosity, BT_LOG_DEBUG   },
 		{ "syslog",  no_argument, 0,          's'         },
@@ -633,6 +639,9 @@ int main(int argc, char *argv[]) {
 	while ((opt = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
 		switch (opt) {
 			case 0:
+				break;
+			case 'd':
+				bt_bmc_device = optarg;
 				break;
 			case 's':
 				/* Avoid a double openlog() */
