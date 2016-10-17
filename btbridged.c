@@ -339,7 +339,7 @@ static int bt_host_write(struct btbridged_context *context, struct bt_queue *bt_
 	struct bt_queue *head;
 	uint8_t data[BT_MAX_MESSAGE] = { 0 };
 	sd_bus_message *msg = NULL;
-	int r, len;
+	int r = 0, len;
 
 	assert(context);
 
@@ -489,7 +489,7 @@ static int dispatch_sd_bus(struct btbridged_context *context)
 static int dispatch_bt(struct btbridged_context *context)
 {
 	int err = 0;
-	int r;
+	int r = 0;
 
 	assert(context);
 
