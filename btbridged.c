@@ -40,7 +40,7 @@ static const char *bt_bmc_device = "/dev/ipmi-bt-host";
 #define PREFIX "BTBRIDGED"
 
 #define BT_BMC_PATH bt_bmc_device
-#define BT_BMC_TIMEOUT_SEC 5
+#define BT_BMC_TIMEOUT_SEC 10
 #define BT_MAX_MESSAGE 64
 
 #define DBUS_NAME "org.openbmc.HostIpmi"
