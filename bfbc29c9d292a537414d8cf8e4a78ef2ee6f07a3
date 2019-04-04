@@ -1,0 +1,9 @@
+Code-Review+2: Andrew Jeffery <andrew@aj.id.au>
+Ok-To-Test+1: Andrew Jeffery <andrew@aj.id.au>
+Ok-To-Test+1: Jenkins <openbmc-ci-admin@ozlabs.org>
+Verified+1: Jenkins <openbmc-ci-admin@ozlabs.org>
+Submitted-by: Patrick Venture <venture@google.com>
+Submitted-at: Thu, 04 Apr 2019 20:42:44 +0000
+Reviewed-on: https://gerrit.openbmc-project.xyz/c/openbmc/btbridge/+/19805
+Project: openbmc/btbridge
+Branch: refs/heads/master
