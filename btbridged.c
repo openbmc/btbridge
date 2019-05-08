@@ -17,6 +17,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <poll.h>
 #include <stdint.h>
@@ -435,8 +436,13 @@ static int dispatch_timer(struct btbridged_context *context)
 {
 	int r = 0;
 	if (context->fds[TIMER_FD].revents & POLLIN) {
-		sd_bus_message *msg;
 		struct bt_queue *head;
+		sd_bus_message *msg;
+		uint64_t counter;
+
+		/* Empty out timerfd so we won't trigger POLLIN continuously */
+		r = read(context->fds[TIMER_FD].fd, &counter, sizeof(counter));
+		MSG_OUT("Timer fired %" PRIu64 " times\n", counter);
 
 		head = bt_q_get_head(context);
 		if (!head) {
