@@ -8,13 +8,14 @@ case $1 in
     clean)
         test -f Makefile && make maintainer-clean
         test -f linux/bt-bmc.h && rm -rf linux/bt-bmc.h
-        test -d linux && find linux -type d -empty | xargs -r rm -rf
+        test -d linux && find linux -type d -empty -print0 | xargs -0 -r rm -rf
         for file in ${AUTOCONF_FILES}; do
-            find -name "$file" | xargs -r rm -rf
+            find . -name "$file" -print0 | xargs -0 -r rm -rf
         done
         exit 0
         ;;
 esac
 
 autoreconf -i
+# shellcheck disable=SC2016
 echo 'Run "./configure ${CONFIGURE_FLAGS} && make"'
