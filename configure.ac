@@ -6,13 +6,15 @@ AM_INIT_AUTOMAKE([subdir-objects -Wall -Werror foreign dist-xz])
 AM_SILENT_RULES([yes])
 
 # Checks for programs.
-AC_PROG_CC
+AC_PROG_CXX
 AM_PROG_AR
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 
 # Checks for libraries.
 PKG_CHECK_MODULES([SYSTEMD], [libsystemd >= 221])
+PKG_CHECK_MODULES([PHOSPHOR_LOGGING], [phosphor-logging])
+PKG_CHECK_MODULES([SDBUSPLUS], [sdbusplus])
 
 # Checks for header files.
 AC_CHECK_HEADER(systemd/sd-bus.h, ,[AC_MSG_ERROR([Could not find systemd/sd-bus.h...systemd developement package required])])
@@ -23,6 +25,7 @@ AS_IF([test "$HAVE_LINUX_BT_BMC_H" != ""],
 )
 
 # Checks for typedefs, structures, and compiler characteristics.
+AX_CXX_COMPILE_STDCXX([17], [noext], [mandatory])
 AX_APPEND_COMPILE_FLAGS([-fpic -Wall -Werror], [CFLAGS])
 
 # Checks for library functions.
