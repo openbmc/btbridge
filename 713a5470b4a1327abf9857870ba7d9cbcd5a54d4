@@ -1,0 +1,8 @@
+Ok-To-Test+1: OpenBMC CI <openbmcbump-ci@yahoo.com>
+Verified+1: OpenBMC CI <openbmcbump-ci@yahoo.com>
+Code-Review+2: Andrew Jeffery <andrew@aj.id.au>
+Submitted-by: Andrew Jeffery <andrew@aj.id.au>
+Submitted-at: Mon, 25 Oct 2021 22:35:00 +0000
+Reviewed-on: https://gerrit.openbmc-project.xyz/c/openbmc/btbridge/+/48085
+Project: openbmc/btbridge
+Branch: refs/heads/master
