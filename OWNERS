@@ -37,7 +37,6 @@ owners:
 - joel@jms.id.au
 
 reviewers:
-- cyril.bur@au1.ibm.com
 
 matchers:
 
@@ -45,9 +44,6 @@ openbmc:
 - name: Andrew Jeffery
   email: andrew@aj.id.au
   discord: arj
-- name: Cyril Bur
-  email: cyril.bur@au1.ibm.com
-  discord: NA
 - name: Jeremy Kerr
   email: jk@ozlabs.org
   discord: jk-
