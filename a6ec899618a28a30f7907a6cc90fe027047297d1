@@ -1,0 +1,7 @@
+Verified+1: OpenBMC CI <openbmcbump-ci@yahoo.com>
+Code-Review+2: Patrick Williams <patrick@stwcx.xyz>
+Submitted-by: Patrick Williams <patrick@stwcx.xyz>
+Submitted-at: Sat, 03 Sep 2022 11:49:54 +0000
+Reviewed-on: https://gerrit.openbmc.org/c/openbmc/btbridge/+/56064
+Project: openbmc/btbridge
+Branch: refs/heads/master
