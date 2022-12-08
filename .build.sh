@@ -20,4 +20,4 @@ mkdir -p linux
 wget https://raw.githubusercontent.com/openbmc/linux/dev-4.3/include/uapi/linux/bt-host.h -O linux/bt-host.h
 
 docker run --cap-add=sys_admin --net=host --rm=true --user="${USER}" \
- -w "${PWD}" -v "${HOME}":"${HOME}" -t temp make "KERNEL_HEADERS=$PWD"
+    -w "${PWD}" -v "${HOME}":"${HOME}" -t temp make "KERNEL_HEADERS=$PWD"
