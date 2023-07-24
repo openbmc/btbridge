@@ -95,7 +95,7 @@ static void bt_log_console(int p, const char *fmt, va_list args)
 
 	clock_gettime(CLOCK_REALTIME, &time);
 
-	fprintf(s, "[%s %ld.%.9ld] ", PREFIX, time.tv_sec, time.tv_nsec);
+	fprintf(s, "[%s %lld.%.9ld] ", PREFIX, (unsigned long long)time.tv_sec, time.tv_nsec);
 
 	vfprintf(s, fmt, args);
 }
