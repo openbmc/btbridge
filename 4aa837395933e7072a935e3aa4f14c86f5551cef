@@ -1,4 +1,22 @@
 {
-  "comments": [],
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "03f87fd7_44e811be",
+        "filename": "btbridged.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 98,
+      "author": {
+        "id": 1000013
+      },
+      "writtenOn": "2023-07-31T08:46:00Z",
+      "side": 1,
+      "message": "The clock_gettime manpage uses this:\n\n           printf(\"%-15s: %10jd.%03ld (\", name,\n                  (intmax_t) ts.tv_sec, ts.tv_nsec / 1000000);\n\n\n       j      A  following  integer  conversion  corresponds to an intmax_t or uintmax_t argument, or a\n              following n conversion corresponds to a pointer to an intmax_t argument.\n\nSo perhaps we should be printing tv_sec like this:\n\nfprintf(s, \"[%s %jd.%.9ld] \", PREFIX, (intmax_t)time.tv_sec, time.tv_nsec);",
+      "revId": "4aa837395933e7072a935e3aa4f14c86f5551cef",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    }
+  ],
   "submitRequirementResults": []
 }
