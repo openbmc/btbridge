@@ -227,7 +227,7 @@ static struct bt_queue *bt_q_drop(struct btbridged_context *context, struct bt_q
 			r = r->next;
 
 		if (!r) {
-			MSG_ERR("Didn't find element %p in queue\n", element);
+			MSG_ERR("Didn't find element %p in queue\n", (void*)element);
 			bt_q_free(element);
 			return NULL;
 		}
@@ -559,7 +559,7 @@ static int dispatch_bt(struct btbridged_context *context)
 				new->req.seq, new->req.netfn, new->req.lun, new->req.cmd);
 
 		if (verbosity == BT_LOG_DEBUG) {
-			int i;
+			size_t i;
 			for (i = 0; i < new->req.data_len; i++) {
 				if (i % 8 == 0) {
 					if (i)
