@@ -1,0 +1,38 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "967477f8_06599666",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000016
+      },
+      "writtenOn": "2023-08-09T03:46:15Z",
+      "side": 1,
+      "message": "LGTM, but the btbridged.c change looks unrelated to meson? Or is this required by a change in the compile flags?",
+      "revId": "f2f6281c7823ce6b55fb71a303f9eb33181de79c",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "3440cc72_fb502955",
+        "filename": "meson.build",
+        "patchSetId": 2
+      },
+      "lineNbr": 22,
+      "author": {
+        "id": 1000016
+      },
+      "writtenOn": "2023-08-09T03:46:15Z",
+      "side": 1,
+      "message": "Is this necessary? bindir should be relative to prefix by default...\n\nhttps://mesonbuild.com/Builtin-options.html#universal-options",
+      "revId": "f2f6281c7823ce6b55fb71a303f9eb33181de79c",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    }
+  ]
+}
