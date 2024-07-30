@@ -2,7 +2,7 @@
 
 ## To Build
 
-```
+```text
 To build this package, do the following steps:
 
     1. meson setup build
