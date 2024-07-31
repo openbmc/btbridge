@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "9b70286e_26801e32",
+        "filename": "README.md",
+        "patchSetId": 1
+      },
+      "lineNbr": 5,
+      "author": {
+        "id": 1000009
+      },
+      "writtenOn": "2024-07-31T05:54:55Z",
+      "side": 1,
+      "message": "I prefer we just remove the code-block, so we have:\n\n```\nTo build this package, do the following steps:\n\n1. meson setup build\n2. meson compile -C build\n```",
+      "revId": "6282257ed7721f68f275de9e43f8777c6fe38831",
+      "serverId": "adbd0a64-1f21-4d83-b585-671fe73cb6e4"
+    }
+  ]
+}
