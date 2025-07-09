@@ -15,7 +15,7 @@ project(
 
 systemd = dependency('systemd')
 libsystemd = dependency('libsystemd')
-systemd_system_unit_dir = systemd.get_variable(pkgconfig: 'systemdsystemunitdir')
+systemd_system_unit_dir = systemd.get_variable(pkgconfig: 'systemd_system_unit_dir')
 
 executable('btbridged', 'btbridged.c', dependencies: [libsystemd], install: true)
 
