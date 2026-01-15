@@ -52,8 +52,8 @@ static const char *bt_bmc_device = "/dev/ipmi-bt-host";
 #define TIMER_FD 2
 #define TOTAL_FDS 3
 
-#define MSG_OUT(f_, ...) do { if (verbosity != BT_LOG_NONE) { bt_log(LOG_INFO, f_, ##__VA_ARGS__); } } while(0)
-#define MSG_ERR(f_, ...) do { if (verbosity != BT_LOG_NONE) { bt_log(LOG_ERR, f_, ##__VA_ARGS__); } } while(0)
+#define MSG_OUT(...) do { if (verbosity != BT_LOG_NONE) { bt_log(LOG_INFO, __VA_ARGS__); } } while(0)
+#define MSG_ERR(...) do { if (verbosity != BT_LOG_NONE) { bt_log(LOG_ERR, __VA_ARGS__); } } while(0)
 
 struct ipmi_msg {
 	uint8_t netfn;
