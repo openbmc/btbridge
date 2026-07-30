@@ -32,21 +32,9 @@
 # data within them will be kept sorted.
 
 owners:
-- andrew@codeconstruct.com.au
-- jk@ozlabs.org
-- joel@jms.id.au
 
 reviewers:
 
 matchers:
 
 openbmc:
-- name: Andrew Jeffery
-  email: andrew@codeconstruct.com.au
-  discord: arj
-- name: Jeremy Kerr
-  email: jk@ozlabs.org
-  discord: jk-
-- name: Joel Stanley
-  email: joel@jms.id.au
-  discord: joel
