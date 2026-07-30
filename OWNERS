@@ -34,7 +34,6 @@
 owners:
 - andrew@codeconstruct.com.au
 - jk@ozlabs.org
-- joel@jms.id.au
 
 reviewers:
 
@@ -47,6 +46,3 @@ openbmc:
 - name: Jeremy Kerr
   email: jk@ozlabs.org
   discord: jk-
-- name: Joel Stanley
-  email: joel@jms.id.au
-  discord: joel
